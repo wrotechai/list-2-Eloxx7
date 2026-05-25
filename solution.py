@@ -58,19 +58,17 @@ def move_generator(state):
     for r in range(rows):
         for c in range(cols):
             if state.board[r][c] == state.current_player:
-                current_moves = []
                 new_r = r + direction
                 if 0 <= new_r < rows:
-                    # Forward — empty or 'o' only
+                    # Forward — only onto empty square
                     if state.board[new_r][c] == '_':
-                        current_moves.append((r, c, new_r, c))
-                    # Diagonal left
-                    if c - 1 >= 0 and state.board[new_r][c - 1] != state.current_player:
-                        current_moves.append((r, c, new_r, c - 1))
-                    # Diagonal right
-                    if c + 1 >= 0 and state.board[new_r][c - 1] != state.current_player:
-                        current_moves.append((r, c, new_r, c + 1))
-                moves.extend(current_moves)
+                        moves.append((r, c, new_r, c))
+                    # Diagonal left — capture only
+                    if c - 1 >= 0 and state.board[new_r][c - 1] == opponent:
+                        moves.append((r, c, new_r, c - 1))
+                    # Diagonal right — capture only
+                    if c + 1 < cols and state.board[new_r][c + 1] == opponent:
+                        moves.append((r, c, new_r, c + 1))
     return moves
 
 
@@ -157,10 +155,6 @@ def heuristic_adaptive(state):
       - If our best piece is within 2 rows of winning  → sprint (most_advanced)
       - If we've lost more than 30% of our pieces      → defend (piece_count)
       - Otherwise                                       → advance (advancement)
-
-    'Our' perspective is always B (maximising), so we evaluate from B's point of view.
-    W's minimax will still minimise this score, so the adaptive logic naturally
-    works for both players within the same search.
     """
     winner = is_terminal(state)
     if winner == 'B':
@@ -171,31 +165,26 @@ def heuristic_adaptive(state):
     rows = state.rows
     cols = state.cols
 
-    # Count pieces
     b_pieces = sum(row.count('B') for row in state.board)
     w_pieces = sum(row.count('W') for row in state.board)
-    starting_pieces = cols * 2  # default two rows each
+    starting_pieces = cols * 2
 
-    # Most advanced piece for each player
     b_best_row = max((r for r in range(rows) for c in range(cols)
                       if state.board[r][c] == 'B'), default=0)
     w_best_row = min((r for r in range(rows) for c in range(cols)
                       if state.board[r][c] == 'W'), default=rows - 1)
 
-    b_distance = rows - 1 - b_best_row   # rows remaining for B to win
-    w_distance = w_best_row               # rows remaining for W to win
+    b_distance = rows - 1 - b_best_row
+    w_distance = w_best_row
 
-    # Sprint condition: either player is within 2 rows of winning
     if b_distance <= 2 or w_distance <= 2:
         return heuristic_most_advanced_piece(state)
 
-    # Defend condition: current player has lost more than 30% of pieces
     b_ratio = b_pieces / starting_pieces
     w_ratio = w_pieces / starting_pieces
     if b_ratio < 0.7 or w_ratio < 0.7:
         return heuristic_piece_count(state)
 
-    # Default: advancement
     return heuristic_advancement(state)
 
 
@@ -203,7 +192,7 @@ HEURISTICS = {
     '1': heuristic_piece_count,
     '2': heuristic_advancement,
     '3': heuristic_most_advanced_piece,
-    '4': heuristic_adaptive,   # extended adaptive heuristic
+    '4': heuristic_adaptive,
 }
 
 
@@ -243,6 +232,7 @@ def minimax(state, depth, heuristic):
                 best_score = score
                 best_move = move
         return best_score, best_move
+
 
 # ─── Alpha-Beta ────────────────────────────────────────────────────────────────
 
@@ -296,6 +286,7 @@ def alphabeta(state, depth, alpha, beta, heuristic):
 
         return value, best_move
 
+
 def best_move_for(state, depth, heuristic, use_alphabeta):
     """Return the best move for the current player."""
     if use_alphabeta:
@@ -305,7 +296,7 @@ def best_move_for(state, depth, heuristic, use_alphabeta):
     return move
 
 
-# ─── Mode: full game (basic) ───────────────────────────────────────────────────
+# ─── Mode: full game ───────────────────────────────────────────────────────────
 
 def play_full_game(state, depth, heuristic, use_alphabeta):
     global nodes_visited
@@ -327,10 +318,8 @@ def play_full_game(state, depth, heuristic, use_alphabeta):
         if move is None:
             winner = 'W' if state.current_player == 'B' else 'B'
             elapsed = time.time() - start_time
-
             print_board_final(state)
             print(f"Rounds: {rounds} Winner: {winner}")
-
             print(nodes_visited, file=sys.stderr)
             print(f"{elapsed:.3f}", file=sys.stderr)
             return
@@ -339,22 +328,15 @@ def play_full_game(state, depth, heuristic, use_alphabeta):
         rounds += 1
 
 
-# ─── Mode: single move (extended two-agent) ────────────────────────────────────
+# ─── Mode: single move ─────────────────────────────────────────────────────────
 
 def play_single_move(state, depth, heuristic, use_alphabeta):
-    """
-    Compute and apply one move for the current player.
-    Output: updated board only (no summary line).
-    Stderr: nodes visited, time.
-    Used when two agents alternate invocations.
-    """
     global nodes_visited
     nodes_visited = 0
     start_time = time.time()
 
     winner = is_terminal(state)
     if winner:
-        # Game is already over — just print the board
         print_board_final(state)
         print(f"Rounds: 0 Winner: {winner}")
         print(nodes_visited, file=sys.stderr)
@@ -368,7 +350,6 @@ def play_single_move(state, depth, heuristic, use_alphabeta):
     elapsed = time.time() - start_time
     print_board_final(state)
 
-    # Check if the move just won the game
     winner = is_terminal(state)
     if winner:
         print(f"Rounds: 1 Winner: {winner}")
@@ -380,29 +361,22 @@ def play_single_move(state, depth, heuristic, use_alphabeta):
 # ─── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    # Expected args:
-    #   Basic:    solution.py <algorithm> <heuristic> <depth>
-    #   Extended: solution.py <algorithm> <heuristic> <depth> <mode> <player>
-    #
-    #   <mode>   = "full" (default) | "single"
-    #   <player> = "B" | "W"  (only required for single mode)
-
     if len(sys.argv) < 4:
         print("Usage: python3 solution.py <algorithm> <heuristic> <depth> [single <player>]",
               file=sys.stderr)
         sys.exit(1)
 
-    algorithm    = sys.argv[1]          # "minimax" or "alphabeta"
-    heuristic_id = sys.argv[2]          # "1", "2", "3", or "4"
+    algorithm    = sys.argv[1]
+    heuristic_id = sys.argv[2]
     depth        = int(sys.argv[3])
-    mode         = sys.argv[4] if len(sys.argv) > 4 else 'full'   # "full" or "single"
-    player       = sys.argv[5] if len(sys.argv) > 5 else 'B'      # "B" or "W"
+    mode         = sys.argv[4] if len(sys.argv) > 4 else 'full'
+    player       = sys.argv[5] if len(sys.argv) > 5 else 'B'
 
     if heuristic_id not in HEURISTICS:
         print(f"Unknown heuristic '{heuristic_id}'. Use 1, 2, 3, or 4.", file=sys.stderr)
         sys.exit(1)
 
-    heuristic    = HEURISTICS[heuristic_id]
+    heuristic     = HEURISTICS[heuristic_id]
     use_alphabeta = algorithm == 'alphabeta'
 
     board = parse_board_from_stdin()
