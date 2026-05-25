@@ -94,11 +94,21 @@ def apply_move(state, move):
 # ─── Terminal check ────────────────────────────────────────────────────────────
 
 def is_terminal(state):
-    for c in range(state.cols):
-        if state.board[state.rows - 1][c] == 'B':
-            return 'B'
-        if state.board[0][c] == 'W':
-            return 'W'
+    # B wins if reaches last row
+    if 'B' in state.board[state.rows - 1]:
+        return 'B'
+
+    # W wins if reaches first row
+    if 'W' in state.board[0]:
+        return 'W'
+
+    # no pieces left cases
+    all_cells = [c for row in state.board for c in row]
+    if 'B' not in all_cells:
+        return 'W'
+    if 'W' not in all_cells:
+        return 'B'
+
     return None
 
 
@@ -207,9 +217,7 @@ def minimax(state, depth, heuristic):
     nodes_visited += 1
 
     winner = is_terminal(state)
-    if winner is not None:
-        return heuristic(state), None
-    if depth == 0:
+    if winner is not None or depth == 0:
         return heuristic(state), None
 
     moves = move_generator(state)
@@ -226,6 +234,7 @@ def minimax(state, depth, heuristic):
                 best_score = score
                 best_move = move
         return best_score, best_move
+
     else:
         best_score = float('inf')
         for move in moves:
@@ -234,7 +243,6 @@ def minimax(state, depth, heuristic):
                 best_score = score
                 best_move = move
         return best_score, best_move
-
 
 # ─── Alpha-Beta ────────────────────────────────────────────────────────────────
 
@@ -243,9 +251,7 @@ def alphabeta(state, depth, alpha, beta, heuristic):
     nodes_visited += 1
 
     winner = is_terminal(state)
-    if winner is not None:
-        return heuristic(state), None
-    if depth == 0:
+    if winner is not None or depth == 0:
         return heuristic(state), None
 
     moves = move_generator(state)
@@ -255,28 +261,40 @@ def alphabeta(state, depth, alpha, beta, heuristic):
     best_move = None
 
     if state.current_player == 'B':
-        best_score = float('-inf')
-        for move in moves:
-            score, _ = alphabeta(apply_move(state, move), depth - 1, alpha, beta, heuristic)
-            if score > best_score:
-                best_score = score
-                best_move = move
-            alpha = max(alpha, best_score)
-            if beta <= alpha:
-                break
-        return best_score, best_move
-    else:
-        best_score = float('inf')
-        for move in moves:
-            score, _ = alphabeta(apply_move(state, move), depth - 1, alpha, beta, heuristic)
-            if score < best_score:
-                best_score = score
-                best_move = move
-            beta = min(beta, best_score)
-            if beta <= alpha:
-                break
-        return best_score, best_move
+        value = float('-inf')
 
+        for move in moves:
+            score, _ = alphabeta(apply_move(state, move),
+                                 depth - 1, alpha, beta, heuristic)
+
+            if score > value:
+                value = score
+                best_move = move
+
+            alpha = max(alpha, value)
+
+            if alpha >= beta:
+                break
+
+        return value, best_move
+
+    else:
+        value = float('inf')
+
+        for move in moves:
+            score, _ = alphabeta(apply_move(state, move),
+                                 depth - 1, alpha, beta, heuristic)
+
+            if score < value:
+                value = score
+                best_move = move
+
+            beta = min(beta, value)
+
+            if alpha >= beta:
+                break
+
+        return value, best_move
 
 def best_move_for(state, depth, heuristic, use_alphabeta):
     """Return the best move for the current player."""
