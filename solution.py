@@ -62,13 +62,13 @@ def move_generator(state):
                 new_r = r + direction
                 if 0 <= new_r < rows:
                     # Forward — empty or 'o' only
-                    if state.board[new_r][c] in ('_', 'o'):
+                    if state.board[new_r][c] == '_':
                         current_moves.append((r, c, new_r, c))
                     # Diagonal left
-                    if c - 1 >= 0 and state.board[new_r][c - 1] in ('_', 'o', opponent):
+                    if c - 1 >= 0 and state.board[new_r][c - 1] != state.current_player:
                         current_moves.append((r, c, new_r, c - 1))
                     # Diagonal right
-                    if c + 1 < cols and state.board[new_r][c + 1] in ('_', 'o', opponent):
+                    if c - 1 >= 0 and state.board[new_r][c - 1] != state.current_player:
                         current_moves.append((r, c, new_r, c + 1))
                 moves.extend(current_moves)
     return moves
@@ -78,16 +78,16 @@ def move_generator(state):
 
 def apply_move(state, move):
     from_row, from_col, to_row, to_col = move
+
     new_state = state.copy()
-    # Clear previous 'o' markers
-    for r in range(new_state.rows):
-        for c in range(new_state.cols):
-            if new_state.board[r][c] == 'o':
-                new_state.board[r][c] = '_'
+
     piece = new_state.board[from_row][from_col]
+
     new_state.board[to_row][to_col] = piece
-    new_state.board[from_row][from_col] = 'o'
+    new_state.board[from_row][from_col] = '_'
+
     new_state.current_player = 'W' if state.current_player == 'B' else 'B'
+
     return new_state
 
 
@@ -307,7 +307,15 @@ def play_full_game(state, depth, heuristic, use_alphabeta):
 
         move = best_move_for(state, depth, heuristic, use_alphabeta)
         if move is None:
-            break
+            winner = 'W' if state.current_player == 'B' else 'B'
+            elapsed = time.time() - start_time
+
+            print_board_final(state)
+            print(f"Rounds: {rounds} Winner: {winner}")
+
+            print(nodes_visited, file=sys.stderr)
+            print(f"{elapsed:.3f}", file=sys.stderr)
+            return
 
         state = apply_move(state, move)
         rounds += 1
