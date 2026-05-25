@@ -68,7 +68,7 @@ def move_generator(state):
                     if c - 1 >= 0 and state.board[new_r][c - 1] != state.current_player:
                         current_moves.append((r, c, new_r, c - 1))
                     # Diagonal right
-                    if c - 1 >= 0 and state.board[new_r][c - 1] != state.current_player:
+                    if c + 1 >= 0 and state.board[new_r][c - 1] != state.current_player:
                         current_moves.append((r, c, new_r, c + 1))
                 moves.extend(current_moves)
     return moves
