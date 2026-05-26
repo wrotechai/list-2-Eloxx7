@@ -214,12 +214,11 @@ def heuristic_adaptive(state):
         return float('-inf')
 
     rows, cols = state.rows, state.cols
-    starting = cols * 2  # two full rows at game start
+    starting_pieces = cols * 2
 
     # Count pieces
     b_pieces = sum(row.count('B') for row in state.board)
     w_pieces = sum(row.count('W') for row in state.board)
-    starting_pieces = cols * 2
 
     # Most advanced piece for each player
     b_best_row = max((r for r in range(rows) for c in range(cols)
@@ -354,6 +353,11 @@ def best_move_for(state, depth, heuristic, use_alphabeta):
 # ─── Mode: full game ───────────────────────────────────────────────────────────
 
 def play_full_game(state, depth, heuristic, use_alphabeta):
+    """
+    Play a complete game from the given state.
+    White moves first (per assignment spec).
+    Both sides use the same algorithm/heuristic/depth.
+    """
     global nodes_visited
     nodes_visited = 0
     rounds = 0
@@ -374,9 +378,8 @@ def play_full_game(state, depth, heuristic, use_alphabeta):
             # No legal moves — opponent wins
             winner = 'W' if state.current_player == 'B' else 'B'
             elapsed = time.time() - start_time
-            print_board_final(state)
+            print_board(state)
             print(f"Rounds: {rounds} Winner: {winner}")
-
             print(nodes_visited, file=sys.stderr)
             print(f"{elapsed:.3f}", file=sys.stderr)
             return
@@ -395,7 +398,7 @@ def play_single_move(state, depth, heuristic, use_alphabeta):
     # Already over before we even move?
     winner = is_terminal(state)
     if winner:
-        print_board_final(state)
+        print_board(state)
         print(f"Rounds: 0 Winner: {winner}")
         print(nodes_visited, file=sys.stderr)
         print("0.000", file=sys.stderr)
@@ -445,7 +448,7 @@ if __name__ == '__main__':
     heuristic_id = sys.argv[2]          # "1", "2", "3", or "4"
     depth        = int(sys.argv[3])
     mode         = sys.argv[4] if len(sys.argv) > 4 else 'full'   # "full" or "single"
-    player       = sys.argv[5] if len(sys.argv) > 5 else 'B'      # "B" or "W"
+    player       = sys.argv[5] if len(sys.argv) > 5 else 'B'      # "B" or "W"; B moves first in full mode
 
     if heuristic_id not in HEURISTICS:
         print(f"Unknown heuristic '{heuristic_id}'. Choose from: {', '.join(HEURISTICS)}.",
